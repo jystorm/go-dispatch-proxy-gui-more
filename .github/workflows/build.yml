@@ -40,4 +40,5 @@ jobs:
       uses: actions/upload-pages-artifact@v3
       with:
         name: dist-${{ matrix.os }}
-        path: | dist/
+        path: |
+          dist/
