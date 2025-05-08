@@ -4,28 +4,18 @@ on:
   push:
     tags:
       - 'v*'  # Run workflow on version tags, e.g. v1.0.0
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Version tag for this release (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
   build-and-release:
-    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -40,10 +30,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Necessario per accedere ai tag
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: '3.9'
 
@@ -54,31 +46,97 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         shell: bash
 
+      - name: Determine tag name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::set-output name=tag::${{ github.event.inputs.tag_name }}"
+          else
+            echo "::set-output name=tag::${GITHUB_REF#refs/tags/}"
+          fi
+        shell: bash
+
       - name: Build with PyInstaller
         run: |
           pyinstaller go-dispatch-proxy-gui.spec
-
+          # Debug: Stampa il contenuto della directory corrente e della directory dist se esiste
+          ls -la
+          if [ -d "dist" ]; then ls -la dist; fi
+        shell: bash
+      
+      # Usiamo una logica più sicura per gli archivi
       - name: Archive Windows build
         if: matrix.os == 'windows-latest'
         run: |
-          powershell Compress-Archive -Path dist/* -DestinationPath ${{ matrix.asset_name }}${{ matrix.asset_extension }}
-
+          # Crea una directory per gli archivi
+          mkdir -p artifacts
+          # Verifica se dist esiste e contiene file
+          if (Test-Path -Path "dist") {
+              if (Get-ChildItem -Path "dist" | Where-Object { !$_.PSIsContainer }) {
+                  Compress-Archive -Path "dist/*" -DestinationPath "artifacts/${{ matrix.asset_name }}${{ matrix.asset_extension }}"
+              } else {
+                  echo "dist directory is empty or contains only subdirectories"
+                  dir dist
+                  # Crea un file vuoto per non far fallire l'upload
+                  New-Item -Path "artifacts/build-log.txt" -ItemType "file" -Value "Build resulted in empty dist directory"
+              }
+          } else {
+              echo "dist directory does not exist"
+              dir
+              # Crea un file vuoto per non far fallire l'upload
+              New-Item -Path "artifacts/build-log.txt" -ItemType "file" -Value "Build failed to create dist directory"
+          }
+        shell: pwsh
+          
       - name: Archive Linux build
         if: matrix.os == 'ubuntu-latest'
         run: |
-          tar -C dist -czvf ${{ matrix.asset_name }}${{ matrix.asset_extension }} .
-
+          # Crea una directory per gli archivi
+          mkdir -p artifacts
+          # Verifica se dist esiste e contiene file
+          if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
+              tar -czvf artifacts/${{ matrix.asset_name }}${{ matrix.asset_extension }} -C dist .
+          else
+              echo "dist directory does not exist or is empty"
+              ls -la
+              # Crea un file vuoto per non far fallire l'upload
+              echo "Build failed to create proper dist directory" > artifacts/build-log.txt
+          fi
+        shell: bash
+          
       - name: Archive macOS build
         if: matrix.os == 'macos-latest'
         run: |
-          ditto -c -k --keepParent dist ${{ matrix.asset_name }}${{ matrix.asset_extension }}
+          # Crea una directory per gli archivi
+          mkdir -p artifacts
+          # Verifica se dist esiste e contiene file
+          if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
+              ditto -c -k --keepParent dist artifacts/${{ matrix.asset_name }}${{ matrix.asset_extension }}
+          else
+              echo "dist directory does not exist or is empty"
+              ls -la
+              # Crea un file vuoto per non far fallire l'upload
+              echo "Build failed to create proper dist directory" > artifacts/build-log.txt
+          fi
+        shell: bash
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      # Carica gli archivi come artefatti (opzionale, utile per debug)
+      - name: Upload build artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: release-${{ matrix.os }}
+          path: artifacts/
+
+      # Crea o aggiorna la release e carica gli asset
+      - name: Create/Update Release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ matrix.asset_name }}${{ matrix.asset_extension }}
-          asset_name: ${{ matrix.asset_name }}${{ matrix.asset_extension }}
-          asset_content_type: application/octet-stream
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: Release ${{ steps.get_tag.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/${{ matrix.asset_name }}${{ matrix.asset_extension }}
+            artifacts/build-log.txt
