@@ -37,7 +37,7 @@ jobs:
         pyinstaller go-dispatch-proxy-gui.spec
     
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v2
       with:
         name: dist-${{ matrix.os }}
         path: |
