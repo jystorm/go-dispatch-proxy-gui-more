@@ -1,8 +1,9 @@
 # Go Dispatch Proxy GUI
 
-Interfaccia grafica per il programma a riga di comando `go-dispatch-proxy.exe`.
+Interfaccia grafica per il programma a riga di comando `go-dispatch-proxy.exe` https://github.com/extremecoders-re/go-dispatch-proxy.
 
-![Screenshot dell'interfaccia](screenshot_placeholder.jpg)
+![image](https://github.com/user-attachments/assets/d80cab43-8cef-496d-afb4-3e4ef4f3d0dc)
+
 
 ## Caratteristiche
 
@@ -39,7 +40,7 @@ Interfaccia grafica per il programma a riga di comando `go-dispatch-proxy.exe`.
    ```
 4. Per creare un eseguibile autonomo:
    ```
-   python setup.py build
+   pyinstaller go-dispatch-proxy-gui.spec
    ```
 
 ## Utilizzo
