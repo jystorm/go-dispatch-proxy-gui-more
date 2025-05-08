@@ -1,69 +1,69 @@
 # Go Dispatch Proxy GUI
 
-Interfaccia grafica per il programma a riga di comando `go-dispatch-proxy.exe` https://github.com/extremecoders-re/go-dispatch-proxy.
+Graphical interface for the command-line program `go-dispatch-proxy.exe` https://github.com/extremecoders-re/go-dispatch-proxy.
 
 ![image](https://github.com/user-attachments/assets/d80cab43-8cef-496d-afb4-3e4ef4f3d0dc)
 
 
-## Caratteristiche
+## Features
 
-- Interfaccia grafica moderna con tema chiaro/scuro
-- Rilevamento intelligente delle interfacce di rete fisiche attive (escludendo interfacce virtuali)
-- Configurazione completa delle opzioni di go-dispatch-proxy
-- Visualizzazione dell'output del proxy in tempo reale
-- Avvio/arresto semplificato del proxy
+- Modern GUI with light/dark theme
+- Smart detection of active physical network interfaces (excluding virtual interfaces)
+- Full configuration of go-dispatch-proxy options
+- Real-time display of proxy output
+- Simplified proxy start/stop
 
-## Requisiti
+## Requirements
 
-- Windows (testato su Windows 10/11)
-- `go-dispatch-proxy.exe` (deve essere disponibile nel PATH di sistema o nella stessa cartella dell'applicazione)
+- Windows (tested on Windows 10/11)
+- [go-dispatch-proxy.exe](https://github.com/extremecoders-re/go-dispatch-proxy) (must be available in the system PATH or in the same folder as the application)
 
-## Installazione
+## Installation
 
-### Metodo 1: Download dell'eseguibile precompilato
+### Method 1: Download the precompiled executable
 
-1. Scarica l'ultima versione dell'applicazione dalla sezione [Releases](https://github.com/tuousername/go-dispatch-proxy-gui/releases)
-2. Estrai l'archivio ZIP
-3. Assicurati che `go-dispatch-proxy.exe` sia nel PATH o nella stessa cartella
-4. Esegui `GoDispatchProxyGUI.exe`
+1. Download the latest version of the application from the [Releases](https://github.com/gulp79/go-dispatch-proxy-gui/releases) section
+2. Make sure [go-dispatch-proxy.exe](https://github.com/extremecoders-re/go-dispatch-proxy) is in the PATH or in the same folder
+3. Run `GoDispatchProxyGUI.exe`
 
-### Metodo 2: Compilazione da codice sorgente
+### Method 2: Build from source code
 
-1. Clona o scarica questo repository
-2. Installa le dipendenze Python:
+1. Clone or download this repository
+2. Install the Python dependencies:
    ```
    pip install -r requirements.txt
    ```
-3. Esegui l'applicazione direttamente:
+3. Run the application directly:
    ```
    python go_dispatch_proxy_gui.py
    ```
-4. Per creare un eseguibile autonomo:
+4. To create a standalone executable:
    ```
    pyinstaller go-dispatch-proxy-gui.spec
    ```
 
-## Utilizzo
+## Usage
 
-1. Avviare l'applicazione
-2. Selezionare una o più interfacce di rete dalla lista
-3. Configurare le opzioni del proxy:
-   - **Host**: L'indirizzo IP su cui il proxy ascolterà le connessioni SOCKS (default: 127.0.0.1)
-   - **Porta**: La porta su cui il proxy ascolterà le connessioni SOCKS (default: 8080)
-   - **Modalità Tunnel**: Attiva la modalità tunnel (funziona come un proxy di bilanciamento del carico trasparente)
-   - **Modalità Silenziosa**: Disabilita i messaggi a schermo
-4. Cliccare su "Avvia Proxy" per iniziare
-5. Visualizzare l'output del proxy nella finestra di destra
-6. Cliccare su "Ferma Proxy" per terminare
+1. Launch the application
+2. Select one or more network interfaces from the list
+3. Configure the proxy options:
+   - **Host**: The IP address on which the proxy will listen for SOCKS connections (default: 127.0.0.1)
+   - **Port**: The port on which the proxy will listen for SOCKS connections (default: 8080)
+   - **Tunnel Mode**: Enables tunnel mode (acts as a transparent load-balancing proxy)
+   - **Silent Mode**: Disables on-screen messages
+4. Click "Start Proxy" to begin
+5. View the proxy output in the right-hand window
+6. Click "Stop Proxy" to terminate
 
-## Note
+## Notes
 
-- L'applicazione rileva automaticamente solo le interfacce di rete fisiche attivamente connesse
-- Vengono escluse le interfacce virtuali (VPN, Docker, VMware, WSL, ecc.) e le interfacce non attive
-- Gli indirizzi loopback (127.x.x.x) e link-local (169.254.x.x) vengono filtrati
-- Il pulsante "Aggiorna interfacce" permette di aggiornare la lista in caso di modifiche
-- Chiudendo l'applicazione si terminerà automaticamente il processo del proxy
+- The application automatically detects only active physical network interfaces
+- Virtual interfaces (VPN, Docker, VMware, WSL, etc.) and inactive interfaces are excluded
+- Loopback (127.x.x.x) and link-local (169.254.x.x) addresses are filtered out
+- The "Refresh Interfaces" button allows updating the list in case of changes
+- Closing the application will automatically terminate the proxy process
 
-## Licenza
+## License
 
 [MIT License](LICENSE)
+
