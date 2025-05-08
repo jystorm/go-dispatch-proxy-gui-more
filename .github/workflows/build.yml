@@ -18,10 +18,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     
@@ -36,28 +36,10 @@ jobs:
       run: |
         pyinstaller go-dispatch-proxy-gui.spec
     
-    # Non usiamo upload-artifact per evitare problemi di compatibilità
-    # Al suo posto, archiviamo gli eseguibili e li salviamo come artefatti di GitHub Actions
-    - name: Archive Windows build
-      if: matrix.os == 'windows-latest'
-      run: |
-        powershell Compress-Archive -Path dist/* -DestinationPath go-dispatch-proxy-gui-windows.zip
-        
-    - name: Archive Linux build
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        tar -C dist -czvf go-dispatch-proxy-gui-linux.tar.gz .
-        
-    - name: Archive macOS build
-      if: matrix.os == 'macos-latest'
-      run: |
-        ditto -c -k --keepParent dist go-dispatch-proxy-gui-macos.zip
-        
-    # Salviamo gli archivi come artefatti
-    - name: Upload build archives
-      uses: actions/upload-artifact@v2
+    - name: Upload build artifacts
+      uses: actions/upload-pages-artifact@v3
       with:
-        name: build-${{ matrix.os }}
+        name: dist-${{ matrix.os }}
         path: |
-          *.zip
-          *.tar.gz
+          dist/
+          build/
