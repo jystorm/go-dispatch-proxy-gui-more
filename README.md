@@ -67,3 +67,4 @@ Graphical interface for the command-line program `go-dispatch-proxy.exe` https:/
 
 [MIT License](LICENSE)
 
+![Downloads](https://img.shields.io/github/downloads/gulp79/go-dispatch-proxy-gui/total?style=for-the-badge&labelColor=21262d&color=238636)
