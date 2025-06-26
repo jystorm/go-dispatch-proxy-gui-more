@@ -1,8 +1,12 @@
-# Go Dispatch Proxy GUI
+~~# Go Dispatch Proxy GUI~~
+# go-dispatch-proxy-gui-more
 
 Graphical interface for the command-line program `go-dispatch-proxy.exe` https://github.com/extremecoders-re/go-dispatch-proxy.
 
-![image](https://github.com/user-attachments/assets/d80cab43-8cef-496d-afb4-3e4ef4f3d0dc)
+*This project is a continuation/fork of the original **go-dispatch-proxy-gui** by **Mirko (gulp79)** — thank you for the excellent foundation!*
+
+~~![image](https://github.com/user-attachments/assets/d80cab43-8cef-496d-afb4-3e4ef4f3d0dc)~~
+![screenshot](screenshot.jpg)
 
 
 ## Features
@@ -62,6 +66,13 @@ Graphical interface for the command-line program `go-dispatch-proxy.exe` https:/
 - Loopback (127.x.x.x) and link-local (169.254.x.x) addresses are filtered out
 - The "Refresh Interfaces" button allows updating the list in case of changes
 - Closing the application will automatically terminate the proxy process
+
+## Changes in go-dispatch-proxy-gui-more
+
+- Project renamed from `go-dispatch-proxy-gui` to `go-dispatch-proxy-gui-more`.
+- Added more features to the GUI.
+   - Added interface weight adjustment via slider (default: 1, max: 4).
+   - Added real-time NIC statistics panel.
 
 ## License
 
