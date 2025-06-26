@@ -360,9 +360,10 @@ class GoDispatchProxyGUI(ctk.CTk):
         # 명령어 준비
         command = ["go-dispatch-proxy.exe"]
 
-        # 인터페이스별 옵션 추가
+        # 인터페이스별 인수 추가 (IP[@weight] 형태)
         for ip, weight in selected_items:
-            command.extend(["-iface", ip, "-weight", str(weight)])
+            arg = f"{ip}@{weight}" if weight != 1 else ip  # weight 1은 생략 가능
+            command.append(arg)
 
         # 기타 옵션
         if self.lhost_var.get():
