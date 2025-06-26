@@ -48,11 +48,11 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.grid_columnconfigure(1, weight=7)
         self.grid_rowconfigure(0, weight=1)
         
-        # Frame sinistro per le opzioni e selezione IP
+        # Left frame for options and IP selection
         self.left_frame = ctk.CTkFrame(self)
         self.left_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         
-        # Frame destro per l'output
+        # Right frame for proxy output
         self.right_frame = ctk.CTkFrame(self)
         self.right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
         
@@ -78,7 +78,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         )
         subtitle_label.grid(row=1, column=0, padx=10, pady=(0, 20), sticky="w")
         
-        # Frame per le opzioni
+        # Options frame
         options_frame = ctk.CTkFrame(self.left_frame)
         options_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
         options_frame.grid_columnconfigure(0, weight=1)
@@ -105,16 +105,16 @@ class GoDispatchProxyGUI(ctk.CTk):
         quiet_switch = ctk.CTkSwitch(options_frame, text="Quiet Mode", variable=self.quiet_var)
         quiet_switch.grid(row=2, column=1, padx=5, pady=5, sticky="w")
         
-        # Lista di interfacce
+        # Interface list label
         interfaces_label = ctk.CTkLabel(self.left_frame, text="Available physical interfaces:", anchor="w")
         interfaces_label.grid(row=3, column=0, padx=10, pady=(20, 5), sticky="w")
         
-        # Frame con scrollbar per la lista IP
-        # NIC 목록 프레임 (초기 높이는 작게, 이후 동적으로 조정)
+        # Frame with scrollbar for IP list
+        # NIC frame (initial small height, dynamic later)
         self.ip_frame = ctk.CTkFrame(self.left_frame, height=1)
         self.ip_frame.grid(row=4, column=0, padx=5, pady=(0,2), sticky="ew")
-        self.left_frame.grid_rowconfigure(4, weight=0)  # 자동 세로 확장 끄기
-        self.ip_frame.grid_propagate(False)  # 내부 위젯에 따라 자동 크기 조정 막기
+        self.left_frame.grid_rowconfigure(4, weight=0)  # Disable automatic vertical expansion
+        self.ip_frame.grid_propagate(False)  # Prevent auto resize based on inner widgets
 
         self.ip_frame.grid_rowconfigure(0, weight=1)
         self.ip_frame.grid_columnconfigure(0, weight=1)
@@ -172,7 +172,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.right_frame.grid_rowconfigure(1, weight=5)
         self.right_frame.grid_rowconfigure(2, weight=0)
         
-        # Titolo del pannello
+        # Panel title
         output_title = ctk.CTkLabel(
             self.right_frame, 
             text="Proxy output", 
@@ -206,7 +206,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         ctk.set_appearance_mode(theme)
     
     def load_ip_addresses(self):
-        # Pulisce le checkboxes esistenti
+        # Clear existing checkboxes
         for checkbox in self.ip_checkboxes:
             checkbox.destroy()
         
@@ -214,7 +214,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.ip_checkboxes = []
         
         try:
-            # Ottiene gli indirizzi IP locali con nome dell'interfaccia
+            # Get local IP addresses with interface name
             interfaces = self.get_network_interfaces()
             # Store physical NIC names for stats filtering
             self.physical_nics = [name for _, name in interfaces]
@@ -227,7 +227,7 @@ class GoDispatchProxyGUI(ctk.CTk):
 
                 # Frame per checkbox + slider
                 row_frame = ctk.CTkFrame(self.ip_scrollable_frame)
-                row_frame.grid(row=i, column=0, padx=0, pady=0, sticky="ew")  # 여백 최소화
+                row_frame.grid(row=i, column=0, padx=0, pady=0, sticky="ew")  # Minimize margins
                 row_frame.grid_columnconfigure(1, weight=1)
                 row_frame.grid_columnconfigure(2, weight=0)
 
@@ -279,26 +279,25 @@ class GoDispatchProxyGUI(ctk.CTk):
             label = ctk.CTkLabel(self.ip_scrollable_frame, text="Error loading interfaces")
             label.grid(row=0, column=0, padx=10, pady=10)
             self.ip_checkboxes.append(label)
-    
     def get_network_interfaces(self):
-        """Ottiene solo le interfacce di rete fisiche attive con i loro indirizzi IP"""
+        """Get only active physical network interfaces with their IP addresses"""
         interfaces = []
         
         try:
-            # Otteniamo informazioni sulle interfacce di rete
+            # Get network interface information
             net_if_addrs = psutil.net_if_addrs()
             net_if_stats = psutil.net_if_stats()
             
-            # Filtriamo solo le interfacce fisiche attive
+            # Filter only active physical interfaces
             for interface, addrs in net_if_addrs.items():
-                # Verifichiamo se l'interfaccia è attiva
+                # Check if the interface is active
                 if interface in net_if_stats and net_if_stats[interface].isup:
-                    # Escludiamo interfacce virtuali comuni
+                    # Exclude common virtual interfaces
                     if not self.is_virtual_interface(interface):
                         for addr in addrs:
-                            # Consideriamo solo gli indirizzi IPv4
+                            # Consider only IPv4 addresses
                             if addr.family == socket.AF_INET:
-                                # Escludiamo gli indirizzi loopback e link-local
+                                # Exclude loopback and link-local addresses
                                 ip = addr.address
                                 if not (ip.startswith('127.') or ip.startswith('169.254.')):
                                     interfaces.append((ip, interface))
@@ -326,8 +325,8 @@ class GoDispatchProxyGUI(ctk.CTk):
         return interfaces
         
     def is_virtual_interface(self, interface_name):
-        """Determina se un'interfaccia è probabilmente virtuale"""
-        # Lista di pattern comuni per interfacce virtuali
+        """Determine if an interface is likely virtual"""
+        # List of common patterns for virtual interfaces
         virtual_patterns = [
             'vmware', 'virtual', 'vethernet', 'veth', 'docker', 'lo', 'loopback', 
             'tap', 'tun', 'vpn', 'bridge', 'vbox', 'hyper-v', 'pseudo', 'vnic',
@@ -350,7 +349,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.stop_proxy()
     
     def start_proxy(self):
-        # 선택된 인터페이스와 가중치 추출
+        # Extract selected interfaces and weights
         selected_items = [(ip, weight_var.get()) for var, ip, weight_var in self.ip_vars if var.get()]
 
         if not selected_items:
@@ -392,16 +391,16 @@ class GoDispatchProxyGUI(ctk.CTk):
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             
-            # Aggior나 lo stato
+            # Update state
             self.running = True
             self.start_button.configure(text="Stop Proxy", fg_color="#C41E3A", hover_color="#E32636")
             
             # Avvia un thread per leggere l'output
         except FileNotFoundError as e:
-            self.update_output("\n[실행 오류] go-dispatch-proxy.exe 파일을 찾을 수 없습니다.\n"
-                               "실행 파일이 프로그램 폴더 또는 시스템 PATH에 있는지 확인해 주세요.\n")
-            messagebox.showerror("실행 오류", "go-dispatch-proxy.exe 파일을 찾을 수 없습니다.\n"
-                                 "실행 파일이 프로그램 폴더 또는 시스템 PATH에 있는지 확인해 주세요.")
+            self.update_output("\n[Execution Error] go-dispatch-proxy.exe not found.\n"
+                               "Please ensure the executable is in the program folder or in the system PATH.\n")
+            messagebox.showerror("Execution Error", "go-dispatch-proxy.exe not found.\n"
+                                 "Please ensure the executable is in the program folder or in the system PATH.")
         except Exception as e:
             self.update_output(f"Unable to start proxy: {str(e)}")
             messagebox.showerror("Error", f"Unable to start proxy: {str(e)}")
@@ -414,8 +413,8 @@ class GoDispatchProxyGUI(ctk.CTk):
     def stop_proxy(self):
         if self.proxy_process:
             try:
-                # Termina il processo
-                if self.proxy_process.poll() is None:  # Se il processo è ancora in esecuzione
+                # Terminate the process
+                if self.proxy_process.poll() is None:  # If the process is still running
                     self.proxy_process.terminate()
                     try:
                         self.proxy_process.wait(timeout=5)
@@ -428,17 +427,17 @@ class GoDispatchProxyGUI(ctk.CTk):
                 self.update_output(f"\nError stopping proxy: {str(e)}")
             
             finally:
-                # Resetta lo stato
+                # Reset state
                 self.running = False
                 self.proxy_process = None
-                self.start_button.configure(text="Avvia Proxy", fg_color=["#3B8ED0", "#1F6AA5"], hover_color=["#36719F", "#144870"])
+                self.start_button.configure(text="Start Proxy", fg_color=["#3B8ED0", "#1F6AA5"], hover_color=["#36719F", "#144870"])
     
     def read_output(self):
-        """Legge l'output dal processo del proxy e lo aggiorna nell'interfaccia"""
+        """Read the output from the proxy process and update the interface"""
         if not self.proxy_process:
             return
         
-        while self.proxy_process.poll() is None:  # Finché il processo è in esecuzione
+        while self.proxy_process.poll() is None:  # While the process is running
             line = self.proxy_process.stdout.readline()
             if line:
                 self.update_output(line)
@@ -474,7 +473,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.after(0, _update)
     
     # --------------------------------------------------
-    # NIC statistics 업데이트
+    # NIC statistics update
     # --------------------------------------------------
     def update_nic_stats(self):
         """Update NIC statistics table every second (physical NICs only)."""
@@ -534,7 +533,7 @@ class GoDispatchProxyGUI(ctk.CTk):
 
     
     def on_closing(self):
-        """Handle application closing"""
+        """Gestisce la chiusura dell'applicazione"""
         if self.running:
             self.stop_proxy()
         
