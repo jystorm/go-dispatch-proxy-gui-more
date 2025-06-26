@@ -13,37 +13,37 @@ class GoDispatchProxyGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        # Configurazione della finestra principale
+        # Main window configuration
         self.title("Go Dispatch Proxy GUI")
         self.geometry("900x600")
         self.minsize(800, 500)
         
-        # Imposta il tema scuro come predefinito
+        # Set dark theme as default
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
         
-        # Variabili di stato
+        # State variables
         self.proxy_process = None
         self.running = False
         self.selected_ips = []
         
-        # Crea il layout principale
+        # Create the main layout
         self.create_layout()
         
-        # Carica gli indirizzi IP disponibili
+        # Load available IP addresses
         self.load_ip_addresses()
         
-        # NIC 통계 초기화 및 업데이트 루프 시작
+        # Initialize NIC statistics and start update loop
         self.nic_prev_counters = {}
         self.last_stats_time = time.time()
         self.nic_stat_labels = {}
         self.update_nic_stats()
         
-        # Protocolla la chiusura della finestra
+        # Handle window close event
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
     
     def create_layout(self):
-        # Frame principale con due colonne
+        # Main frame with two columns
         self.grid_columnconfigure(0, weight=3)
         self.grid_columnconfigure(1, weight=7)
         self.grid_rowconfigure(0, weight=1)
@@ -62,7 +62,7 @@ class GoDispatchProxyGUI(ctk.CTk):
     def create_left_panel(self):
         self.left_frame.grid_columnconfigure(0, weight=1)
         
-        # Titolo
+        # Title
         title_label = ctk.CTkLabel(
             self.left_frame, 
             text="Go Dispatch Proxy", 
@@ -70,7 +70,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         )
         title_label.grid(row=0, column=0, padx=10, pady=(20, 10), sticky="w")
         
-        # Sottotitolo
+        # Subtitle
         subtitle_label = ctk.CTkLabel(
             self.left_frame, 
             text="Select interfaces and configure options", 
@@ -96,7 +96,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         lport_entry = ctk.CTkEntry(options_frame, textvariable=self.lport_var)
         lport_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         
-        # Opzioni tunnel e quiet
+        # Tunnel and quiet options
         self.tunnel_var = ctk.BooleanVar(value=False)
         tunnel_switch = ctk.CTkSwitch(options_frame, text="Tunnel Mode", variable=self.tunnel_var)
         tunnel_switch.grid(row=2, column=0, padx=5, pady=5, sticky="w")
@@ -119,12 +119,12 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.ip_frame.grid_rowconfigure(0, weight=1)
         self.ip_frame.grid_columnconfigure(0, weight=1)
 
-        # 스크롤 영역 (height 나중에 설정)
+        # Scroll area (height set later)
         self.ip_scrollable_frame = ctk.CTkScrollableFrame(self.ip_frame)
         self.ip_scrollable_frame.grid(row=0, column=0, sticky="nsew")
         self.ip_scrollable_frame.grid_columnconfigure(0, weight=1)
         
-        # Il contenuto delle checkbox IP sarà popolato dalla funzione load_ip_addresses
+        # The IP checkbox content is populated by load_ip_addresses
         self.ip_vars = []
         self.ip_checkboxes = []
         
@@ -180,7 +180,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         )
         output_title.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         
-        # Textbox per l'output
+        # Textbox for output
         self.output_textbox = ctk.CTkTextbox(self.right_frame, wrap="word")
         self.output_textbox.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         self.output_textbox.configure(state="disabled")
@@ -219,7 +219,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             # Store physical NIC names for stats filtering
             self.physical_nics = [name for _, name in interfaces]
             
-            # Crea una checkbox + Spinbox per ogni indirizzo IP
+            # Create a checkbox + Spinbox for each IP address
             for i, (ip, interface_name) in enumerate(interfaces):
                 var = ctk.BooleanVar(value=False)
                 weight_var = ctk.IntVar(value=1)
@@ -240,7 +240,7 @@ class GoDispatchProxyGUI(ctk.CTk):
                 )
                 checkbox.grid(row=0, column=0, sticky="w")
 
-                # 슬라이더(가중치)
+                # Slider (weight)
                 def slider_callback(value, weight_var=weight_var, value_label=None):
                     int_val = int(round(value))
                     weight_var.set(int_val)
@@ -251,16 +251,16 @@ class GoDispatchProxyGUI(ctk.CTk):
                 weight_slider.configure(width=120)
                 weight_slider.grid(row=0, column=1, padx=(10,0), sticky="e")
 
-                # 값 표시 Label
+                # Value display Label
                 value_label = ctk.CTkLabel(row_frame, text="1", width=20)
                 value_label.grid(row=0, column=2, padx=(8,0), sticky="e")
 
-                # 슬라이더 값 변경 시 label 동기화
+                # Synchronize label when slider value changes
                 weight_slider.configure(command=lambda value, wv=weight_var, vl=value_label: slider_callback(value, wv, vl))
 
                 self.ip_checkboxes.append(row_frame)
             
-            # Se non ci sono interfacce
+            # If there are no interfaces
             if not interfaces:
                 label = ctk.CTkLabel(self.ip_scrollable_frame, text="No physical interfaces available")
                 label.grid(row=0, column=0, padx=10, pady=10)
@@ -270,7 +270,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             count = len(interfaces)
             visible = min(count, 4)
             row_height = 38  # approximate row height
-            target_height = max(visible * row_height, 80)  # 최소 80
+            target_height = max(visible * row_height, 80)  # minimum 80
             self.ip_scrollable_frame.configure(height=target_height)
             self.ip_frame.configure(height=target_height)
         
@@ -303,18 +303,18 @@ class GoDispatchProxyGUI(ctk.CTk):
                                 if not (ip.startswith('127.') or ip.startswith('169.254.')):
                                     interfaces.append((ip, interface))
             
-            # Se non troviamo interfacce, proviamo il comando -list del proxy
+            # If we don't find interfaces, try the proxy -list command
             if not interfaces:
                 try:
                     result = subprocess.run(["go-dispatch-proxy.exe", "-list"], 
                                             capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
                     
-                    # Analizza l'output per estrarre gli indirizzi IP
+                    # Parse the output to extract IP addresses
                     ip_pattern = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
                     ips = re.findall(ip_pattern, result.stdout)
                     
                     for ip in ips:
-                        # Escludiamo gli indirizzi loopback e link-local
+                        # Exclude loopback and link-local addresses
                         if not (ip.startswith('127.') or ip.startswith('169.254.')):
                             interfaces.append((ip, "Interface detected by go-dispatch-proxy"))
                 except:
@@ -336,7 +336,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         
         name_lower = interface_name.lower()
         
-        # Controlla se il nome dell'interfaccia contiene uno dei pattern virtuali
+        # Check if the interface name contains one of the virtual patterns
         for pattern in virtual_patterns:
             if pattern in name_lower:
                 return True
@@ -357,14 +357,14 @@ class GoDispatchProxyGUI(ctk.CTk):
             messagebox.showerror("Error", "Select at least one IP address!")
             return
 
-        # 명령어 준비
+        # Prepare command
         command = ["go-dispatch-proxy.exe"]
 
-        # 인터페이스별 옵션 추가
+        # Add interface-specific options
         for ip, weight in selected_items:
             command.extend(["-iface", ip, "-weight", str(weight)])
 
-        # 기타 옵션
+        # Other options
         if self.lhost_var.get():
             command.extend(["-lhost", self.lhost_var.get()])
 
@@ -379,11 +379,11 @@ class GoDispatchProxyGUI(ctk.CTk):
         
 
         try:
-            # Aggior나 l'interfaccia per mostrare che stiamo avviando il proxy
+            # Update the interface to show that we are starting the proxy
             self.update_output("Starting proxy...\n")
             self.update_output(f"Command: {' '.join(command)}\n\n")
             
-            # Avvia il processo nascosto
+            # Start the hidden process
             self.proxy_process = subprocess.Popen(
                 command, 
                 stdout=subprocess.PIPE, 
@@ -420,7 +420,7 @@ class GoDispatchProxyGUI(ctk.CTk):
                     try:
                         self.proxy_process.wait(timeout=5)
                     except subprocess.TimeoutExpired:
-                        self.proxy_process.kill()
+                        self.proxy_process.kill()  # Force kill if not terminated
                 
                 self.update_output("\nProxy stopped.\n")
                 
@@ -534,7 +534,7 @@ class GoDispatchProxyGUI(ctk.CTk):
 
     
     def on_closing(self):
-        """Gestisce la chiusura dell'applicazione"""
+        """Handle application closing"""
         if self.running:
             self.stop_proxy()
         
