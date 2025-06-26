@@ -169,7 +169,7 @@ class GoDispatchProxyGUI(ctk.CTk):
     def create_right_panel(self):
         self.right_frame.grid_columnconfigure(0, weight=1)
         self.right_frame.grid_rowconfigure(0, weight=0)
-        self.right_frame.grid_rowconfigure(1, weight=3)
+        self.right_frame.grid_rowconfigure(1, weight=5)
         self.right_frame.grid_rowconfigure(2, weight=0)
         
         # Titolo del pannello
@@ -216,6 +216,8 @@ class GoDispatchProxyGUI(ctk.CTk):
         try:
             # Ottiene gli indirizzi IP locali con nome dell'interfaccia
             interfaces = self.get_network_interfaces()
+            # Store physical NIC names for stats filtering
+            self.physical_nics = [name for _, name in interfaces]
             
             # Crea una checkbox + Spinbox per ogni indirizzo IP
             for i, (ip, interface_name) in enumerate(interfaces):
@@ -475,44 +477,61 @@ class GoDispatchProxyGUI(ctk.CTk):
     # NIC statistics 업데이트
     # --------------------------------------------------
     def update_nic_stats(self):
-        """Gather per-NIC traffic stats every second and update UI."""
+        """Update NIC statistics table every second (physical NICs only)."""
         try:
-            now = time.time()
             counters = psutil.net_io_counters(pernic=True)
 
-            row_idx = 0
-            for nic, data in counters.items():
+            # Build header once
+            if not hasattr(self, "_stats_header_built"):
+                headers = ["Interface", "▲ Mb/s", "▼ Mb/s", "TX GB", "RX GB"]
+                for col, text in enumerate(headers):
+                    lbl = ctk.CTkLabel(self.stats_content, text=text, font=ctk.CTkFont(size=12, weight="bold"))
+                    lbl.grid(row=0, column=col, padx=4, pady=(0,2), sticky="w" if col==0 else "e")
+                self._stats_header_built = True
+
+            row_idx = 1  # start after header
+            for nic in getattr(self, "physical_nics", []):
+                data = counters.get(nic)
+                if data is None:
+                    continue
+
                 prev_sent, prev_recv = self.nic_prev_counters.get(nic, (data.bytes_sent, data.bytes_recv))
+                elapsed = max(time.time() - self.last_stats_time, 1e-6)
+                up_rate = (data.bytes_sent - prev_sent) * 8 / 1_000_000 / elapsed
+                down_rate = (data.bytes_recv - prev_recv) * 8 / 1_000_000 / elapsed
 
-                elapsed = max(now - self.last_stats_time, 1e-6)
-                up_rate_mbps = (data.bytes_sent - prev_sent) * 8 / 1_000_000 / elapsed
-                down_rate_mbps = (data.bytes_recv - prev_recv) * 8 / 1_000_000 / elapsed
-
-                label_text = (f"{nic}:  ▲ {up_rate_mbps:5.1f} Mb/s  ▼ {down_rate_mbps:5.1f} Mb/s   "
-                              f"TX {data.bytes_sent/1_000_000_000:.2f} GB  RX {data.bytes_recv/1_000_000_000:.2f} GB")
-
-                if nic in self.nic_stat_labels:
-                    self.nic_stat_labels[nic].configure(text=label_text)
+                # Create row widgets if first time
+                if nic not in self.nic_stat_labels:
+                    name_lbl = ctk.CTkLabel(self.stats_content, text=nic, anchor="w")
+                    up_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    down_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    tx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    rx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    widgets = (name_lbl, up_lbl, down_lbl, tx_lbl, rx_lbl)
+                    for col, w in enumerate(widgets):
+                        w.grid(row=row_idx, column=col, padx=4, sticky="w" if col==0 else "e")
+                    self.nic_stat_labels[nic] = widgets
                 else:
-                    lbl = ctk.CTkLabel(self.stats_content, text=label_text, anchor="w")
-                    lbl.grid(row=row_idx, column=0, sticky="w")
-                    self.nic_stat_labels[nic] = lbl
+                    widgets = self.nic_stat_labels[nic]
+                    # move row if ordering changed
+                    for col, w in enumerate(widgets):
+                        w.grid_configure(row=row_idx)
+
+                widgets[1].configure(text=f"{up_rate:5.1f}")
+                widgets[2].configure(text=f"{down_rate:5.1f}")
+                widgets[3].configure(text=f"{data.bytes_sent/1_000_000_000:.2f}")
+                widgets[4].configure(text=f"{data.bytes_recv/1_000_000_000:.2f}")
 
                 self.nic_prev_counters[nic] = (data.bytes_sent, data.bytes_recv)
                 row_idx += 1
 
-            # 제거된 NIC 라벨 정리
-            for nic in list(self.nic_stat_labels.keys()):
-                if nic not in counters:
-                    self.nic_stat_labels[nic].destroy()
-                    del self.nic_stat_labels[nic]
-
-            self.last_stats_time = now
+            self.last_stats_time = time.time()
         except Exception as e:
             self.update_output(f"[NIC stats error] {e}\n")
 
-        # 다음 업데이트 예약
+        # schedule next update
         self.after(1000, self.update_nic_stats)
+
     
     def on_closing(self):
         """Gestisce la chiusura dell'applicazione"""
