@@ -355,11 +355,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         # Prepare command
         command = ["go-dispatch-proxy.exe"]
 
-        # Add interface-specific options
-        for ip, weight in selected_items:
-            command.extend(["-iface", ip, "-weight", str(weight)])
-
-        # Other options
+        # Add options first (before IP addresses)
         if self.lhost_var.get():
             command.extend(["-lhost", self.lhost_var.get()])
 
@@ -371,6 +367,11 @@ class GoDispatchProxyGUI(ctk.CTk):
         
         if self.quiet_var.get():
             command.append("-quiet")
+
+        # Add interface-specific arguments (IP[@weight] format) after options
+        for ip, weight in selected_items:
+            arg = f"{ip}@{weight}" if weight != 1 else ip  # weight 1 can be omitted
+            command.append(arg)
         
 
         try:
