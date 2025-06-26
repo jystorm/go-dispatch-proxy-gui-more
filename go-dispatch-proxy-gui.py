@@ -7,6 +7,7 @@ import re
 import customtkinter as ctk
 from tkinter import messagebox
 import psutil
+import time
 
 class GoDispatchProxyGUI(ctk.CTk):
     def __init__(self):
@@ -31,6 +32,12 @@ class GoDispatchProxyGUI(ctk.CTk):
         
         # Carica gli indirizzi IP disponibili
         self.load_ip_addresses()
+        
+        # NIC 통계 초기화 및 업데이트 루프 시작
+        self.nic_prev_counters = {}
+        self.last_stats_time = time.time()
+        self.nic_stat_labels = {}
+        self.update_nic_stats()
         
         # Protocolla la chiusura della finestra
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -162,7 +169,8 @@ class GoDispatchProxyGUI(ctk.CTk):
     def create_right_panel(self):
         self.right_frame.grid_columnconfigure(0, weight=1)
         self.right_frame.grid_rowconfigure(0, weight=0)
-        self.right_frame.grid_rowconfigure(1, weight=1)
+        self.right_frame.grid_rowconfigure(1, weight=5)
+        self.right_frame.grid_rowconfigure(2, weight=0)
         
         # Titolo del pannello
         output_title = ctk.CTkLabel(
@@ -176,6 +184,23 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.output_textbox = ctk.CTkTextbox(self.right_frame, wrap="word")
         self.output_textbox.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
         self.output_textbox.configure(state="disabled")
+        
+        # --- NIC statistics panel ---
+        self.stats_frame = ctk.CTkFrame(self.right_frame)
+        self.stats_frame.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.stats_frame.grid_columnconfigure(0, weight=1)
+
+        stats_title = ctk.CTkLabel(
+            self.stats_frame,
+            text="NIC statistics",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        stats_title.grid(row=0, column=0, sticky="w")
+
+        # Frame to contain dynamic NIC labels
+        self.stats_content = ctk.CTkFrame(self.stats_frame)
+        self.stats_content.grid(row=1, column=0, sticky="ew")
+        self.stats_content.grid_columnconfigure(0, weight=1)
     
     def change_theme(self, theme):
         ctk.set_appearance_mode(theme)
@@ -191,6 +216,8 @@ class GoDispatchProxyGUI(ctk.CTk):
         try:
             # Ottiene gli indirizzi IP locali con nome dell'interfaccia
             interfaces = self.get_network_interfaces()
+            # Store physical NIC names for stats filtering
+            self.physical_nics = [name for _, name in interfaces]
             
             # Crea una checkbox + Spinbox per ogni indirizzo IP
             for i, (ip, interface_name) in enumerate(interfaces):
@@ -445,6 +472,66 @@ class GoDispatchProxyGUI(ctk.CTk):
         
         # Assicura che l'aggiornamento dell'interfaccia avvenga nel thread principale
         self.after(0, _update)
+    
+    # --------------------------------------------------
+    # NIC statistics 업데이트
+    # --------------------------------------------------
+    def update_nic_stats(self):
+        """Update NIC statistics table every second (physical NICs only)."""
+        try:
+            counters = psutil.net_io_counters(pernic=True)
+
+            # Build header once
+            if not hasattr(self, "_stats_header_built"):
+                headers = ["Interface", "▲ Mb/s", "▼ Mb/s", "TX GB", "RX GB"]
+                for col, text in enumerate(headers):
+                    lbl = ctk.CTkLabel(self.stats_content, text=text, font=ctk.CTkFont(size=12, weight="bold"))
+                    lbl.grid(row=0, column=col, padx=4, pady=(0,2), sticky="w" if col==0 else "e")
+                self._stats_header_built = True
+
+            row_idx = 1  # start after header
+            for nic in getattr(self, "physical_nics", []):
+                data = counters.get(nic)
+                if data is None:
+                    continue
+
+                prev_sent, prev_recv = self.nic_prev_counters.get(nic, (data.bytes_sent, data.bytes_recv))
+                elapsed = max(time.time() - self.last_stats_time, 1e-6)
+                up_rate = (data.bytes_sent - prev_sent) * 8 / 1_000_000 / elapsed
+                down_rate = (data.bytes_recv - prev_recv) * 8 / 1_000_000 / elapsed
+
+                # Create row widgets if first time
+                if nic not in self.nic_stat_labels:
+                    name_lbl = ctk.CTkLabel(self.stats_content, text=nic, anchor="w")
+                    up_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    down_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    tx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    rx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
+                    widgets = (name_lbl, up_lbl, down_lbl, tx_lbl, rx_lbl)
+                    for col, w in enumerate(widgets):
+                        w.grid(row=row_idx, column=col, padx=4, sticky="w" if col==0 else "e")
+                    self.nic_stat_labels[nic] = widgets
+                else:
+                    widgets = self.nic_stat_labels[nic]
+                    # move row if ordering changed
+                    for col, w in enumerate(widgets):
+                        w.grid_configure(row=row_idx)
+
+                widgets[1].configure(text=f"{up_rate:5.1f}")
+                widgets[2].configure(text=f"{down_rate:5.1f}")
+                widgets[3].configure(text=f"{data.bytes_sent/1_000_000_000:.2f}")
+                widgets[4].configure(text=f"{data.bytes_recv/1_000_000_000:.2f}")
+
+                self.nic_prev_counters[nic] = (data.bytes_sent, data.bytes_recv)
+                row_idx += 1
+
+            self.last_stats_time = time.time()
+        except Exception as e:
+            self.update_output(f"[NIC stats error] {e}\n")
+
+        # schedule next update
+        self.after(1000, self.update_nic_stats)
+
     
     def on_closing(self):
         """Gestisce la chiusura dell'applicazione"""
