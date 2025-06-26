@@ -55,7 +55,6 @@ class GoDispatchProxyGUI(ctk.CTk):
         # Right frame for proxy output
         self.right_frame = ctk.CTkFrame(self)
         self.right_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        
         self.create_left_panel()
         self.create_right_panel()
     
@@ -203,8 +202,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.stats_content.grid_columnconfigure(0, weight=1)
     
     def change_theme(self, theme):
-        ctk.set_appearance_mode(theme)
-    
+        ctk.set_appearance_mode(theme)    
     def load_ip_addresses(self):
         # Clear existing checkboxes
         for checkbox in self.ip_checkboxes:
@@ -225,7 +223,7 @@ class GoDispatchProxyGUI(ctk.CTk):
                 weight_var = ctk.IntVar(value=1)
                 self.ip_vars.append((var, ip, weight_var))
 
-                # Frame per checkbox + slider
+                # Frame for checkbox + slider
                 row_frame = ctk.CTkFrame(self.ip_scrollable_frame)
                 row_frame.grid(row=i, column=0, padx=0, pady=0, sticky="ew")  # Minimize margins
                 row_frame.grid_columnconfigure(1, weight=1)
@@ -323,7 +321,6 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.update_output(f"Error loading interfaces: {str(e)}")
         
         return interfaces
-        
     def is_virtual_interface(self, interface_name):
         """Determine if an interface is likely virtual"""
         # List of common patterns for virtual interfaces
@@ -347,7 +344,6 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.start_proxy()
         else:
             self.stop_proxy()
-    
     def start_proxy(self):
         # Extract selected interfaces and weights
         selected_items = [(ip, weight_var.get()) for var, ip, weight_var in self.ip_vars if var.get()]
@@ -395,7 +391,9 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.running = True
             self.start_button.configure(text="Stop Proxy", fg_color="#C41E3A", hover_color="#E32636")
             
-            # Avvia un thread per leggere l'output
+            # Start a thread to read the output
+            threading.Thread(target=self.read_output, daemon=True).start()
+            
         except FileNotFoundError as e:
             self.update_output("\n[Execution Error] go-dispatch-proxy.exe not found.\n"
                                "Please ensure the executable is in the program folder or in the system PATH.\n")
@@ -442,17 +440,17 @@ class GoDispatchProxyGUI(ctk.CTk):
             if line:
                 self.update_output(line)
         
-        # Leggi eventuali output rimanenti
+        # Read any remaining output
         remaining_output = self.proxy_process.stdout.read()
         if remaining_output:
             self.update_output(remaining_output)
         
-        # Se il processo è terminato da solo
+        # If the process terminated on its own
         if self.running:
             self.running = False
             self.proxy_process = None
             
-            # Aggiorna il pulsante nell'interfaccia utente (thread-safe)
+            # Update the button in the user interface (thread-safe)
             self.after(0, lambda: self.start_button.configure(
                 text="Start Proxy", 
                 fg_color=["#3B8ED0", "#1F6AA5"], 
@@ -462,16 +460,15 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.update_output("\nThe proxy has unexpectedly stopped.\n")
     
     def update_output(self, text):
-        """Aggiorna la casella di testo dell'output in modo thread-safe"""
+        """Update the output textbox in a thread-safe manner"""
         def _update():
             self.output_textbox.configure(state="normal")
             self.output_textbox.insert("end", text)
             self.output_textbox.see("end")
             self.output_textbox.configure(state="disabled")
-        
-        # Assicura che l'aggiornamento dell'interfaccia avvenga nel thread principale
+        # Ensure that the interface update happens in the main thread
         self.after(0, _update)
-    
+
     # --------------------------------------------------
     # NIC statistics update
     # --------------------------------------------------
@@ -533,7 +530,7 @@ class GoDispatchProxyGUI(ctk.CTk):
 
     
     def on_closing(self):
-        """Gestisce la chiusura dell'applicazione"""
+        """Handle application closing"""
         if self.running:
             self.stop_proxy()
         
