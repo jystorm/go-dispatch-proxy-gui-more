@@ -103,15 +103,17 @@ class GoDispatchProxyGUI(ctk.CTk):
         interfaces_label.grid(row=3, column=0, padx=10, pady=(20, 5), sticky="w")
         
         # Frame con scrollbar per la lista IP
-        ip_frame = ctk.CTkFrame(self.left_frame)
-        ip_frame.grid(row=4, column=0, padx=10, pady=5, sticky="nsew")
-        self.left_frame.grid_rowconfigure(4, weight=1)
-        
-        ip_frame.grid_rowconfigure(0, weight=1)
-        ip_frame.grid_columnconfigure(0, weight=1)
-        
-        # Scrollable frame per IP
-        self.ip_scrollable_frame = ctk.CTkScrollableFrame(ip_frame)
+        # NIC 목록 프레임 (초기 높이는 작게, 이후 동적으로 조정)
+        self.ip_frame = ctk.CTkFrame(self.left_frame, height=1)
+        self.ip_frame.grid(row=4, column=0, padx=5, pady=(0,2), sticky="ew")
+        self.left_frame.grid_rowconfigure(4, weight=0)  # 자동 세로 확장 끄기
+        self.ip_frame.grid_propagate(False)  # 내부 위젯에 따라 자동 크기 조정 막기
+
+        self.ip_frame.grid_rowconfigure(0, weight=1)
+        self.ip_frame.grid_columnconfigure(0, weight=1)
+
+        # 스크롤 영역 (height 나중에 설정)
+        self.ip_scrollable_frame = ctk.CTkScrollableFrame(self.ip_frame)
         self.ip_scrollable_frame.grid(row=0, column=0, sticky="nsew")
         self.ip_scrollable_frame.grid_columnconfigure(0, weight=1)
         
@@ -127,7 +129,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             fg_color="#2B7A0B",
             hover_color="#3A9614"
         )
-        refresh_button.grid(row=5, column=0, padx=10, pady=10, sticky="ew")
+        refresh_button.grid(row=5, column=0, padx=10, pady=(5,4), sticky="ew")
         
         # Start/Stop button
         self.start_button = ctk.CTkButton(
@@ -137,7 +139,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             height=40,
             font=ctk.CTkFont(size=14, weight="bold")
         )
-        self.start_button.grid(row=6, column=0, padx=10, pady=(10, 20), sticky="ew")
+        self.start_button.grid(row=6, column=0, padx=10, pady=(4, 10), sticky="ew")
         
         # Theme selector
         theme_frame = ctk.CTkFrame(self.left_frame)
@@ -190,26 +192,60 @@ class GoDispatchProxyGUI(ctk.CTk):
             # Ottiene gli indirizzi IP locali con nome dell'interfaccia
             interfaces = self.get_network_interfaces()
             
-            # Crea una checkbox per ogni indirizzo IP
+            # Crea una checkbox + Spinbox per ogni indirizzo IP
             for i, (ip, interface_name) in enumerate(interfaces):
                 var = ctk.BooleanVar(value=False)
-                self.ip_vars.append((var, ip))
-                
+                weight_var = ctk.IntVar(value=1)
+                self.ip_vars.append((var, ip, weight_var))
+
+                # Frame per checkbox + slider
+                row_frame = ctk.CTkFrame(self.ip_scrollable_frame)
+                row_frame.grid(row=i, column=0, padx=0, pady=0, sticky="ew")  # 여백 최소화
+                row_frame.grid_columnconfigure(1, weight=1)
+                row_frame.grid_columnconfigure(2, weight=0)
+
                 checkbox = ctk.CTkCheckBox(
-                    self.ip_scrollable_frame, 
+                    row_frame, 
                     text=f"{ip} ({interface_name})",
                     variable=var,
                     onvalue=True,
                     offvalue=False
                 )
-                checkbox.grid(row=i, column=0, padx=10, pady=5, sticky="w")
-                self.ip_checkboxes.append(checkbox)
+                checkbox.grid(row=0, column=0, sticky="w")
+
+                # 슬라이더(가중치)
+                def slider_callback(value, weight_var=weight_var, value_label=None):
+                    int_val = int(round(value))
+                    weight_var.set(int_val)
+                    if value_label is not None:
+                        value_label.configure(text=str(int_val))
+                weight_slider = ctk.CTkSlider(row_frame, from_=1, to=4, number_of_steps=3, orientation="horizontal")
+                weight_slider.set(1)
+                weight_slider.configure(width=120)
+                weight_slider.grid(row=0, column=1, padx=(10,0), sticky="e")
+
+                # 값 표시 Label
+                value_label = ctk.CTkLabel(row_frame, text="1", width=20)
+                value_label.grid(row=0, column=2, padx=(8,0), sticky="e")
+
+                # 슬라이더 값 변경 시 label 동기화
+                weight_slider.configure(command=lambda value, wv=weight_var, vl=value_label: slider_callback(value, wv, vl))
+
+                self.ip_checkboxes.append(row_frame)
             
             # Se non ci sono interfacce
             if not interfaces:
                 label = ctk.CTkLabel(self.ip_scrollable_frame, text="No physical interfaces available")
                 label.grid(row=0, column=0, padx=10, pady=10)
                 self.ip_checkboxes.append(label)
+
+            # --- After populating, adjust frame height dynamically ---
+            count = len(interfaces)
+            visible = min(count, 4)
+            row_height = 38  # approximate row height
+            target_height = max(visible * row_height, 80)  # 최소 80
+            self.ip_scrollable_frame.configure(height=target_height)
+            self.ip_frame.configure(height=target_height)
         
         except Exception as e:
             self.update_output(f"Error loading interfaces: {str(e)}")
@@ -287,34 +323,36 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.stop_proxy()
     
     def start_proxy(self):
-        # Ottieni gli IP selezionati
-        selected_ips = [ip for var, ip in self.ip_vars if var.get()]
-        
-        if not selected_ips:
+        # 선택된 인터페이스와 가중치 추출
+        selected_items = [(ip, weight_var.get()) for var, ip, weight_var in self.ip_vars if var.get()]
+
+        if not selected_items:
             messagebox.showerror("Error", "Select at least one IP address!")
             return
-        
-        # Preparare il comando
+
+        # 명령어 준비
         command = ["go-dispatch-proxy.exe"]
-        
-        # Aggiungi le opzioni
+
+        # 인터페이스별 옵션 추가
+        for ip, weight in selected_items:
+            command.extend(["-iface", ip, "-weight", str(weight)])
+
+        # 기타 옵션
         if self.lhost_var.get():
             command.extend(["-lhost", self.lhost_var.get()])
-        
+
         if self.lport_var.get():
             command.extend(["-lport", self.lport_var.get()])
-        
+
         if self.tunnel_var.get():
             command.append("-tunnel")
         
         if self.quiet_var.get():
             command.append("-quiet")
         
-        # Aggiungi gli IP selezionati
-        command.extend(selected_ips)
-        
+
         try:
-            # Aggiorna l'interfaccia per mostrare che stiamo avviando il proxy
+            # Aggior나 l'interfaccia per mostrare che stiamo avviando il proxy
             self.update_output("Starting proxy...\n")
             self.update_output(f"Command: {' '.join(command)}\n\n")
             
@@ -327,11 +365,19 @@ class GoDispatchProxyGUI(ctk.CTk):
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
             
-            # Aggiorna lo stato
+            # Aggior나 lo stato
             self.running = True
             self.start_button.configure(text="Stop Proxy", fg_color="#C41E3A", hover_color="#E32636")
             
             # Avvia un thread per leggere l'output
+        except FileNotFoundError as e:
+            self.update_output("\n[실행 오류] go-dispatch-proxy.exe 파일을 찾을 수 없습니다.\n"
+                               "실행 파일이 프로그램 폴더 또는 시스템 PATH에 있는지 확인해 주세요.\n")
+            messagebox.showerror("실행 오류", "go-dispatch-proxy.exe 파일을 찾을 수 없습니다.\n"
+                                 "실행 파일이 프로그램 폴더 또는 시스템 PATH에 있는지 확인해 주세요.")
+        except Exception as e:
+            self.update_output(f"Unable to start proxy: {str(e)}")
+            messagebox.showerror("Error", f"Unable to start proxy: {str(e)}")
             threading.Thread(target=self.read_output, daemon=True).start()
             
         except Exception as e:
