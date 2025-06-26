@@ -1,11 +1,14 @@
 ~~# Go Dispatch Proxy GUI~~
 # go-dispatch-proxy-gui-more
 
-Graphical interface for the command-line program `go-dispatch-proxy.exe` https://github.com/extremecoders-re/go-dispatch-proxy.
+Graphical interface for the command-line program `go-dispatch-proxy.exe` https://github.com/extremecoders-re/go-dispatch-proxy. (and some minor functional updates)
 
 *This project is a continuation/fork of the original **go-dispatch-proxy-gui** by **Mirko (gulp79)** — thank you for the excellent foundation!*
 
+before: 
 ~~![image](https://github.com/user-attachments/assets/d80cab43-8cef-496d-afb4-3e4ef4f3d0dc)~~
+
+after: 
 ![screenshot](screenshot.jpg)
 
 
