@@ -64,7 +64,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         # Title
         title_label = ctk.CTkLabel(
             self.left_frame, 
-            text="Go Dispatch Proxy", 
+            text="Go Dispatch Proxy GUI - more ", 
             font=ctk.CTkFont(size=24, weight="bold")
         )
         title_label.grid(row=0, column=0, padx=10, pady=(20, 10), sticky="w")
