@@ -64,7 +64,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         # Title
         title_label = ctk.CTkLabel(
             self.left_frame, 
-            text="Go Dispatch Proxy", 
+            text="Go Dispatch Proxy GUI - more ", 
             font=ctk.CTkFont(size=24, weight="bold")
         )
         title_label.grid(row=0, column=0, padx=10, pady=(20, 10), sticky="w")
@@ -345,6 +345,8 @@ class GoDispatchProxyGUI(ctk.CTk):
         else:
             self.stop_proxy()
     def start_proxy(self):
+        # Mark that any future process termination is not intentional until user stops it
+        self._intentional_stop = False
         # Extract selected interfaces and weights
         selected_items = [(ip, weight_var.get()) for var, ip, weight_var in self.ip_vars if var.get()]
 
@@ -410,6 +412,8 @@ class GoDispatchProxyGUI(ctk.CTk):
             messagebox.showerror("Error", f"Unable to start proxy: {str(e)}")
     
     def stop_proxy(self):
+        # Indicate that we are intentionally stopping the proxy so read_output won't treat it as crash
+        self._intentional_stop = True
         if self.proxy_process:
             try:
                 # Terminate the process
@@ -420,7 +424,9 @@ class GoDispatchProxyGUI(ctk.CTk):
                     except subprocess.TimeoutExpired:
                         self.proxy_process.kill()  # Force kill if not terminated
                 
-                self.update_output("\nProxy stopped.\n")
+                # Clear previous logs and show stopped message
+                self.clear_output()
+                self.update_output("Proxy stopped.\n")
                 
             except Exception as e:
                 self.update_output(f"\nError stopping proxy: {str(e)}")
@@ -447,7 +453,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.update_output(remaining_output)
         
         # If the process terminated on its own
-        if self.running:
+        if self.running and not getattr(self, "_intentional_stop", False):
             self.running = False
             self.proxy_process = None
             
@@ -469,6 +475,14 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.output_textbox.configure(state="disabled")
         # Ensure that the interface update happens in the main thread
         self.after(0, _update)
+
+    def clear_output(self):
+        """Clear the proxy output textbox in a thread-safe way"""
+        def _clear():
+            self.output_textbox.configure(state="normal")
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.configure(state="disabled")
+        self.after(0, _clear)
 
     # --------------------------------------------------
     # NIC statistics update
