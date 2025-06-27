@@ -170,6 +170,8 @@ class GoDispatchProxyGUI(ctk.CTk):
         self.right_frame.grid_rowconfigure(0, weight=0)
         self.right_frame.grid_rowconfigure(1, weight=5)
         self.right_frame.grid_rowconfigure(2, weight=0)
+        # allow space for clear button column
+        self.right_frame.grid_columnconfigure(1, weight=0)
         
         # Panel title
         output_title = ctk.CTkLabel(
@@ -178,6 +180,14 @@ class GoDispatchProxyGUI(ctk.CTk):
             font=ctk.CTkFont(size=16, weight="bold")
         )
         output_title.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        # Clear output button
+        self.clear_button = ctk.CTkButton(
+            self.right_frame,
+            text="Clear",
+            width=80,
+            command=self.clear_output
+        )
+        self.clear_button.grid(row=0, column=1, padx=10, pady=10, sticky="e")
         
         # Textbox for output
         self.output_textbox = ctk.CTkTextbox(self.right_frame, wrap="word")
@@ -467,6 +477,12 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.output_textbox.insert("end", text)
             self.output_textbox.see("end")
             self.output_textbox.configure(state="disabled")
+
+    def clear_output(self):
+        """Clear all text from the proxy output box."""
+        self.output_textbox.configure(state="normal")
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.configure(state="disabled")
         # Ensure that the interface update happens in the main thread
         self.after(0, _update)
 
