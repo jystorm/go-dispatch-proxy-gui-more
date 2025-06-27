@@ -8,6 +8,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 import psutil
 import time
+from nic_bar_graph import BarGraph
 
 class GoDispatchProxyGUI(ctk.CTk):
     def __init__(self):
@@ -509,38 +510,6 @@ class GoDispatchProxyGUI(ctk.CTk):
                 prev_sent, prev_recv = self.nic_prev_counters.get(nic, (data.bytes_sent, data.bytes_recv))
                 elapsed = max(time.time() - self.last_stats_time, 1e-6)
                 up_rate = (data.bytes_sent - prev_sent) * 8 / 1_000_000 / elapsed
-                down_rate = (data.bytes_recv - prev_recv) * 8 / 1_000_000 / elapsed
-
-                # Create row widgets if first time
-                if nic not in self.nic_stat_labels:
-                    name_lbl = ctk.CTkLabel(self.stats_content, text=nic, anchor="w")
-                    up_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    down_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    tx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    rx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    widgets = (name_lbl, up_lbl, down_lbl, tx_lbl, rx_lbl)
-                    for col, w in enumerate(widgets):
-                        w.grid(row=row_idx, column=col, padx=4, sticky="w" if col==0 else "e")
-                    self.nic_stat_labels[nic] = widgets
-                else:
-                    widgets = self.nic_stat_labels[nic]
-                    # move row if ordering changed
-                    for col, w in enumerate(widgets):
-                        w.grid_configure(row=row_idx)
-
-                widgets[1].configure(text=f"{up_rate:5.1f}")
-                widgets[2].configure(text=f"{down_rate:5.1f}")
-                widgets[3].configure(text=f"{data.bytes_sent/1_000_000_000:.2f}")
-                widgets[4].configure(text=f"{data.bytes_recv/1_000_000_000:.2f}")
-
-                self.nic_prev_counters[nic] = (data.bytes_sent, data.bytes_recv)
-                row_idx += 1
-
-            self.last_stats_time = time.time()
-        except Exception as e:
-            self.update_output(f"[NIC stats error] {e}\n")
-
-        # schedule next update
         self.after(1000, self.update_nic_stats)
 
     
