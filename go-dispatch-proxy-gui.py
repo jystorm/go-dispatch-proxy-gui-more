@@ -345,6 +345,8 @@ class GoDispatchProxyGUI(ctk.CTk):
         else:
             self.stop_proxy()
     def start_proxy(self):
+        # Mark that any future process termination is not intentional until user stops it
+        self._intentional_stop = False
         # Extract selected interfaces and weights
         selected_items = [(ip, weight_var.get()) for var, ip, weight_var in self.ip_vars if var.get()]
 
@@ -410,6 +412,8 @@ class GoDispatchProxyGUI(ctk.CTk):
             messagebox.showerror("Error", f"Unable to start proxy: {str(e)}")
     
     def stop_proxy(self):
+        # Indicate that we are intentionally stopping the proxy so read_output won't treat it as crash
+        self._intentional_stop = True
         if self.proxy_process:
             try:
                 # Terminate the process
@@ -449,7 +453,7 @@ class GoDispatchProxyGUI(ctk.CTk):
             self.update_output(remaining_output)
         
         # If the process terminated on its own
-        if self.running:
+        if self.running and not getattr(self, "_intentional_stop", False):
             self.running = False
             self.proxy_process = None
             
