@@ -73,9 +73,29 @@ after:
 ## Changes in go-dispatch-proxy-gui-more
 
 - Project renamed from `go-dispatch-proxy-gui` to `go-dispatch-proxy-gui-more`.
-- Added more features to the GUI.
-   - Added interface weight adjustment via slider (default: 1, max: 4).
-   - Added real-time NIC statistics panel.
+- New features and improvements:
+  - Interface weight adjustment via slider (default: 1, max: 4).
+  - Real-time NIC statistics panel.
+  - Output window now auto-clears when **Stop Proxy** is pressed and distinguishes between intentional vs. unexpected termination.
+  - Experimental **Python multi-NIC SOCKS5 proxy** (`multipath_proxy.py`) for full opensource customization. Activate manually or integrate via future GUI switch.
+
+## Windows 11 Load-Balancing Notes
+
+While testing on Windows 11 the following behaviour was observed:
+
+| Observation | Details |
+|-------------|---------|
+| Only one NIC carried traffic even when multiple interfaces were passed to `go-dispatch-proxy.exe`. | Windows routing prefers the NIC with the lowest interface metric. If a program binds a source IP explicitly Windows still forwards frames according to the routing table. |
+| Browser traffic ignored the proxy unless SOCKS5 was configured per-application. | The built-in Windows proxy UI supports HTTP(S) only, not SOCKS, leading to protocol mismatch warnings. |
+| After configuring Firefox with SOCKS5 `127.0.0.1:8080`, traffic distributed correctly across the selected NICs. | Verified via GUI statistics and `netstat`. |
+
+### Temporary Work-around
+1. Use applications that support SOCKS5 natively and point them to `127.0.0.1:<port>`.
+2. Or run a SOCKS→HTTP bridge (e.g. **redsocks**) and set Windows System Proxy to that HTTP endpoint.
+
+### Planned Enhancements
+* **HTTP CONNECT support** will be added to the Python proxy so that Windows System Proxy can be used without bridges and non-SOCKS applications (aria2, etc.) will work out-of-the-box.
+* CLI flag and GUI toggle will be provided once the feature stabilises.
 
 ## License
 
