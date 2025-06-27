@@ -14,7 +14,7 @@ class GoDispatchProxyGUI(ctk.CTk):
         super().__init__()
         
         # Main window configuration
-        self.title("Go Dispatch Proxy GUI")
+        self.title("Go Dispatch Proxy GUI - more")
         self.geometry("900x600")
         self.minsize(800, 500)
         
