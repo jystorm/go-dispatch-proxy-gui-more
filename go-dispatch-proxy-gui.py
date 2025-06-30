@@ -8,6 +8,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 import psutil
 import time
+from nic_bar_graph import BarGraph, MiniLineGraph
 
 class GoDispatchProxyGUI(ctk.CTk):
     def __init__(self):
@@ -167,9 +168,9 @@ class GoDispatchProxyGUI(ctk.CTk):
     
     def create_right_panel(self):
         self.right_frame.grid_columnconfigure(0, weight=1)
-        self.right_frame.grid_rowconfigure(0, weight=0)
-        self.right_frame.grid_rowconfigure(1, weight=5)
-        self.right_frame.grid_rowconfigure(2, weight=0)
+        self.right_frame.grid_rowconfigure(0, weight=0)  # Title
+        self.right_frame.grid_rowconfigure(1, weight=3)  # Output textbox
+        self.right_frame.grid_rowconfigure(2, weight=2)  # Stats panel
         
         # Panel title
         output_title = ctk.CTkLabel(
@@ -186,19 +187,20 @@ class GoDispatchProxyGUI(ctk.CTk):
         
         # --- NIC statistics panel ---
         self.stats_frame = ctk.CTkFrame(self.right_frame)
-        self.stats_frame.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.stats_frame.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="nsew")
         self.stats_frame.grid_columnconfigure(0, weight=1)
+        self.stats_frame.grid_rowconfigure(1, weight=1) # Let scroll area expand
 
         stats_title = ctk.CTkLabel(
             self.stats_frame,
             text="NIC statistics",
             font=ctk.CTkFont(size=14, weight="bold")
         )
-        stats_title.grid(row=0, column=0, sticky="w")
+        stats_title.grid(row=0, column=0, padx=5, pady=2, sticky="w")
 
-        # Frame to contain dynamic NIC labels
-        self.stats_content = ctk.CTkFrame(self.stats_frame)
-        self.stats_content.grid(row=1, column=0, sticky="ew")
+        # Scrollable frame for NIC stats content
+        self.stats_content = ctk.CTkScrollableFrame(self.stats_frame)
+        self.stats_content.grid(row=1, column=0, sticky="nsew")
         self.stats_content.grid_columnconfigure(0, weight=1)
     
     def change_theme(self, theme):
@@ -376,6 +378,15 @@ class GoDispatchProxyGUI(ctk.CTk):
             command.append(arg)
         
 
+        # --- Check if port is already in use ---
+        if self.lhost_var.get() and self.lport_var.get():
+            if self.is_port_in_use(self.lhost_var.get(), int(self.lport_var.get())):
+                messagebox.showerror("Port in use", f"The port {self.lport_var.get()} is already in use.\nChoose another port or stop the program using it.")
+                return
+
+        # --- Kill any existing go-dispatch-proxy.exe processes (zombie) ---
+        self.kill_existing_proxy_processes()
+
         try:
             # Update the interface to show that we are starting the proxy
             self.update_output("Starting proxy...\n")
@@ -500,7 +511,11 @@ class GoDispatchProxyGUI(ctk.CTk):
                     lbl.grid(row=0, column=col, padx=4, pady=(0,2), sticky="w" if col==0 else "e")
                 self._stats_header_built = True
 
+            # Color palette for different NICs
+            colors = ["#3B8ED0", "#E74C3C", "#2ECC71", "#F39C12", "#9B59B6", "#1ABC9C", "#E67E22", "#34495E"]
+
             row_idx = 1  # start after header
+            nic_index = 0
             for nic in getattr(self, "physical_nics", []):
                 data = counters.get(nic)
                 if data is None:
@@ -511,39 +526,92 @@ class GoDispatchProxyGUI(ctk.CTk):
                 up_rate = (data.bytes_sent - prev_sent) * 8 / 1_000_000 / elapsed
                 down_rate = (data.bytes_recv - prev_recv) * 8 / 1_000_000 / elapsed
 
-                # Create row widgets if first time
-                if nic not in self.nic_stat_labels:
-                    name_lbl = ctk.CTkLabel(self.stats_content, text=nic, anchor="w")
-                    up_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    down_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    tx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    rx_lbl = ctk.CTkLabel(self.stats_content, anchor="e")
-                    widgets = (name_lbl, up_lbl, down_lbl, tx_lbl, rx_lbl)
-                    for col, w in enumerate(widgets):
-                        w.grid(row=row_idx, column=col, padx=4, sticky="w" if col==0 else "e")
-                    self.nic_stat_labels[nic] = widgets
-                else:
-                    widgets = self.nic_stat_labels[nic]
-                    # move row if ordering changed
-                    for col, w in enumerate(widgets):
-                        w.grid_configure(row=row_idx)
-
-                widgets[1].configure(text=f"{up_rate:5.1f}")
-                widgets[2].configure(text=f"{down_rate:5.1f}")
-                widgets[3].configure(text=f"{data.bytes_sent/1_000_000_000:.2f}")
-                widgets[4].configure(text=f"{data.bytes_recv/1_000_000_000:.2f}")
-
+                # Store current counters for next calculation
                 self.nic_prev_counters[nic] = (data.bytes_sent, data.bytes_recv)
-                row_idx += 1
 
+                # Create or update labels for this NIC
+                if nic not in self.nic_stat_labels:
+                    # Get color for this NIC
+                    bar_color = colors[nic_index % len(colors)]
+                    
+                    # Interface name
+                    name_lbl = ctk.CTkLabel(self.stats_content, text=nic, font=ctk.CTkFont(size=11))
+                    name_lbl.grid(row=row_idx, column=0, padx=4, pady=1, sticky="w")
+                    
+                    # Upload speed
+                    up_lbl = ctk.CTkLabel(self.stats_content, text="0.0", font=ctk.CTkFont(size=11))
+                    up_lbl.grid(row=row_idx, column=1, padx=4, pady=1, sticky="e")
+                    
+                    # Download speed
+                    down_lbl = ctk.CTkLabel(self.stats_content, text="0.0", font=ctk.CTkFont(size=11))
+                    down_lbl.grid(row=row_idx, column=2, padx=4, pady=1, sticky="e")
+                    
+                    # Line graph (cumulative trend) left of bar graph
+                    line_graph = MiniLineGraph(self.stats_content, width=80, height=12, line_color=bar_color)
+                    line_graph.grid(row=row_idx+1, column=1, padx=4, pady=(0,2), sticky="ew")
+
+                    # Bar graph for instantaneous download speed
+                    bar_graph = BarGraph(self.stats_content, width=80, height=12, bar_color=bar_color)
+                    bar_graph.grid(row=row_idx+1, column=2, padx=4, pady=(0,2), sticky="ew")
+                    
+                    # TX total
+                    tx_lbl = ctk.CTkLabel(self.stats_content, text="0.0", font=ctk.CTkFont(size=11))
+                    tx_lbl.grid(row=row_idx, column=3, padx=4, pady=1, sticky="e")
+                    
+                    # RX total
+                    rx_lbl = ctk.CTkLabel(self.stats_content, text="0.0", font=ctk.CTkFont(size=11))
+                    rx_lbl.grid(row=row_idx, column=4, padx=4, pady=1, sticky="e")
+
+                    self.nic_stat_labels[nic] = {
+                        'name': name_lbl, 'up': up_lbl, 'down': down_lbl, 
+                        'tx': tx_lbl, 'rx': rx_lbl, 'bar': bar_graph, 'line': line_graph
+                    }
+
+                # Update values
+                labels = self.nic_stat_labels[nic]
+                labels['up'].configure(text=f"{up_rate:.1f}")
+                labels['down'].configure(text=f"{down_rate:.1f}")
+                labels['tx'].configure(text=f"{data.bytes_sent / 1_000_000_000:.1f}")
+                labels['rx'].configure(text=f"{data.bytes_recv / 1_000_000_000:.1f}")
+                
+                # Update graphs
+                labels['bar'].set_value(down_rate, 100.0)
+                labels['line'].add_value(down_rate, 100.0)
+
+                row_idx += 2  # Skip one row for bar graph
+                nic_index += 1
+
+            # Update timestamp for next calculation
             self.last_stats_time = time.time()
+
         except Exception as e:
             self.update_output(f"[NIC stats error] {e}\n")
-
-        # schedule next update
+        
         self.after(1000, self.update_nic_stats)
 
     
+    # ----------------------- Helper methods -----------------------
+    def is_port_in_use(self, host: str, port: int) -> bool:
+        """Return True if the given host:port is already in use."""
+        try:
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            test_sock.bind((host, port))
+            test_sock.close()
+            return False  # bind succeeded => not in use
+        except OSError:
+            return True
+
+    def kill_existing_proxy_processes(self):
+        """Kill stale go-dispatch-proxy.exe processes that might occupy the port."""
+        try:
+            for proc in psutil.process_iter(['name', 'exe', 'cmdline']):
+                name = (proc.info.get('name') or '').lower()
+                if 'go-dispatch-proxy.exe' in name:
+                    proc.kill()
+        except Exception:
+            pass  # best effort
+
     def on_closing(self):
         """Handle application closing"""
         if self.running:
